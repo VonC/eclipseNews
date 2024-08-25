@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
@@ -27,18 +30,63 @@ type feature struct {
 
 func main() {
 
-	// Parse command line arguments
-	kong.Parse(&cli)
+	if len(os.Args) > 1 && os.Args[1] == "args" {
+
+		exePath, err := os.Executable()
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+			return
+		}
+		exeFolder := filepath.Dir(exePath)
+		argsFilePath := filepath.Join(exeFolder, ".vscode", "args")
+
+		file, err := os.Open(argsFilePath)
+		if err != nil {
+			fmt.Println("Error opening file:", err)
+			return
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			key, value := parts[0], parts[1]
+			switch key {
+			case "EclipseVersion":
+				cli.EclipseVersion = value
+			case "TitleToMatch":
+				cli.TitleToMatch = value
+			case "PageToMatch":
+				cli.PageToMatch = value
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Println("Error reading file:", err)
+			return
+		}
+	} else {
+		// Parse command line arguments
+		kong.Parse(&cli)
+	}
 
 	// Use the command line arguments
 	eclipseVersion := cli.EclipseVersion
 	titleToMatch := cli.TitleToMatch
 	pageToMatch := cli.PageToMatch
 
+	fmt.Printf("EclipseVersion: %s\n", cli.EclipseVersion)
+	fmt.Printf("TitleToMatch: %s\n", cli.TitleToMatch)
+	fmt.Printf("PageToMatch: %s\n", cli.PageToMatch)
+
 	// URLs of the subPages
 	subPageURLs := []string{
-		"https://www.eclipse.org/eclipse/news/" + eclipseVersion + "/platform.php",
 		"https://www.eclipse.org/eclipse/news/" + eclipseVersion + "/jdt.php",
+		"https://www.eclipse.org/eclipse/news/" + eclipseVersion + "/platform.php",
 		"https://www.eclipse.org/eclipse/news/" + eclipseVersion + "/platform_isv.php",
 		"https://www.eclipse.org/eclipse/news/" + eclipseVersion + "/pde.php",
 	}
